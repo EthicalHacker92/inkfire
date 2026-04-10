@@ -1,10 +1,10 @@
-# Digital Firefighter — KOReader Plugin Suite
+# inkfire
 
 > A suite of KOReader plugins + local web dashboard solving the biggest pain points
 > for Kobo e-reader users — especially manga readers.
 
 **Target device:** Kobo Clara BW · KOReader (latest stable)  
-**Brand:** [Digital Firefighter](https://github.com/YOUR_GITHUB_USERNAME)
+**Brand:** [Digital Firefighter](https://github.com/EthicalHacker92)
 
 ---
 
