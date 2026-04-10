@@ -42,6 +42,9 @@ local MangaFlow = WidgetContainer:extend{
     total_pages   = 0,
     settings      = nil,   -- SeriesSettings table for current book
     hud_widget    = nil,
+    -- Spread tracking
+    spread_mode   = false,   -- true while two-page spread is active
+    spread_counts = nil,     -- { spreads=N, total=N } sampled at open
 }
 
 function MangaFlow:init()
@@ -55,18 +58,23 @@ function MangaFlow:onReaderReady()
     self:detectAndApply()
 end
 
---- Called on every page turn — update HUD.
+--- Called on every page turn — update HUD and handle spreads.
 function MangaFlow:onPageUpdate(pageno)
     self.current_page = pageno
     self:updateHUD()
+    if self.is_manga then
+        self:handleSpread(pageno)
+    end
 end
 
---- Called when the document closes — clean up HUD.
+--- Called when the document closes — clean up HUD and reset spread state.
 function MangaFlow:onCloseDocument()
     self:removeHUD()
+    self:exitSpreadMode()
     self.is_manga     = false
     self.series_name  = nil
     self.settings     = nil
+    self.spread_counts = nil
 end
 
 -- ── Detection & application ───────────────────────────────────────────────────
@@ -230,6 +238,11 @@ function MangaFlow:applySettings()
         self.ui.readerrolling:setPreCache(s.precache)
     end
 
+    -- Sample pages to check if this book has spreads (scan up to 10 pages)
+    if self.settings and self.settings.spread == 1 then
+        self:sampleSpreadCount()
+    end
+
     -- Show HUD
     self:showHUD()
 end
@@ -305,18 +318,74 @@ function MangaFlow:removeHUD()
     end
 end
 
--- ── Double-page spread detection ──────────────────────────────────────────────
+-- ── Double-page spread handling ───────────────────────────────────────────────
 
---- Returns true if the current page is landscape/wide enough to be a spread.
+--- Returns true if pageno has a landscape / double-page aspect ratio.
 function MangaFlow:isSpreadPage(pageno)
     local doc = self.ui.document
     if not doc then return false end
-
     local ok, dims = pcall(function() return doc:getPageDimensions(pageno, 1, 0) end)
     if not ok or not dims then return false end
-
-    -- A spread is roughly 2:1 or wider aspect ratio
+    -- Spreads are typically ≥1.4:1 width-to-height
     return (dims.w / dims.h) > 1.4
+end
+
+--- Sample up to 10 pages to decide if this book routinely has spreads.
+--- Stores result in self.spread_counts.
+function MangaFlow:sampleSpreadCount()
+    local total    = self.total_pages or 0
+    if total == 0 then return end
+
+    local sample_n = math.min(10, total)
+    local step     = math.max(1, math.floor(total / sample_n))
+    local spreads  = 0
+
+    for i = 1, total, step do
+        if self:isSpreadPage(i) then spreads = spreads + 1 end
+        if i > sample_n * step then break end
+    end
+
+    self.spread_counts = { spreads = spreads, total = sample_n }
+    logger.dbg("MangaFlow: spread sample", spreads, "/", sample_n)
+end
+
+--- Called on every page update — enters/exits spread mode automatically.
+function MangaFlow:handleSpread(pageno)
+    local s = self.settings or SeriesSettings.DEFAULTS
+    if s.spread ~= 1 then return end
+
+    local is_spread = self:isSpreadPage(pageno)
+
+    if is_spread and not self.spread_mode then
+        self:enterSpreadMode()
+    elseif not is_spread and self.spread_mode then
+        self:exitSpreadMode()
+    end
+end
+
+--- Switch reader to "fit width" zoom — shows the full spread width on screen.
+function MangaFlow:enterSpreadMode()
+    self.spread_mode = true
+    local zoom = self.ui.readerzooming
+    if zoom then
+        -- Save current mode so we can restore it
+        self._prev_zoom_mode = zoom.zoom_mode
+        -- "width" mode fits the full page/spread width to the screen
+        pcall(function() zoom:setZoomMode("width") end)
+    end
+    logger.dbg("MangaFlow: entered spread mode")
+end
+
+--- Restore zoom mode after a spread page.
+function MangaFlow:exitSpreadMode()
+    if not self.spread_mode then return end
+    self.spread_mode = false
+    local zoom = self.ui.readerzooming
+    if zoom and self._prev_zoom_mode then
+        pcall(function() zoom:setZoomMode(self._prev_zoom_mode) end)
+        self._prev_zoom_mode = nil
+    end
+    logger.dbg("MangaFlow: exited spread mode")
 end
 
 -- ── Menu ──────────────────────────────────────────────────────────────────────
@@ -344,6 +413,28 @@ function MangaFlow:addToMainMenu(menu_items)
                         if self.ui.paging then
                             self.ui.paging:setPageFlipMode("ltr")
                         end
+                    end
+                end,
+                keep_menu_open = true,
+            },
+            {
+                text_func = function()
+                    local s = self.settings or SeriesSettings.DEFAULTS
+                    return s.spread == 1
+                        and _("Auto Spread: ON  ✓")
+                        or  _("Auto Spread: off")
+                end,
+                enabled_func = function() return self.is_manga end,
+                callback = function()
+                    if not self.series_name then return end
+                    local s = self.settings or SeriesSettings.DEFAULTS
+                    local new_val = (s.spread == 1) and 0 or 1
+                    SeriesSettings.set(self.series_name, { spread = new_val })
+                    self.settings = SeriesSettings.get(self.series_name)
+                    if new_val == 1 then
+                        self:sampleSpreadCount()
+                    else
+                        self:exitSpreadMode()
                     end
                 end,
                 keep_menu_open = true,
