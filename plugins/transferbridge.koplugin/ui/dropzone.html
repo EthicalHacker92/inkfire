@@ -3,14 +3,336 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransferBridge — Digital Firefighter</title>
+  <title>TransferBridge — inkfire</title>
   <style>
-    /* TODO (Session 2): full drag-drop UI with progress bar */
-    body { background: #111; color: #fff; font-family: monospace; }
+    :root {
+      --bg:      #0d0d0d;
+      --surface: #1a1a1a;
+      --border:  #2a2a2a;
+      --accent:  #ff5722;
+      --text:    #f0f0f0;
+      --muted:   #888;
+      --ok:      #4caf50;
+      --warn:    #ff9800;
+      --err:     #f44336;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', 'Courier New', monospace;
+      font-size: 14px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .brand {
+      font-size: 1.1rem;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 6px var(--ok);
+      flex-shrink: 0;
+    }
+    .status-label { color: var(--muted); font-size: 0.8rem; }
+
+    main { flex: 1; padding: 1.5rem; max-width: 720px; margin: 0 auto; width: 100%; }
+
+    /* Drop zone */
+    #dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 3.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    #dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(255,87,34,0.06);
+    }
+    #dropzone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .dz-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .dz-primary { font-size: 1rem; margin-bottom: 0.25rem; }
+    .dz-secondary { color: var(--muted); font-size: 0.8rem; }
+
+    /* File list */
+    #file-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .file-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 1rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .file-name {
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-size { color: var(--muted); font-size: 0.75rem; }
+    .file-progress {
+      margin-top: 0.4rem;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .file-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.2s ease;
+      width: 0%;
+    }
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.2em 0.55em;
+      border-radius: 4px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-pending   { background: #333; color: var(--muted); }
+    .badge-uploading { background: rgba(255,87,34,0.2); color: var(--accent); }
+    .badge-ok        { background: rgba(76,175,80,0.2);  color: var(--ok); }
+    .badge-duplicate { background: rgba(255,152,0,0.2);  color: var(--warn); }
+    .badge-error     { background: rgba(244,67,54,0.2);  color: var(--err); }
+
+    /* Footer */
+    footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .counter { color: var(--muted); font-size: 0.8rem; }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1.25rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.35; cursor: default; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media (max-width: 480px) {
+      main { padding: 1rem; }
+      #dropzone { padding: 2.5rem 1rem; }
+      footer { justify-content: center; }
+    }
   </style>
 </head>
 <body>
-  <h1>TransferBridge</h1>
-  <p>Drop zone UI — implemented in Session 2.</p>
+
+<header>
+  <span class="brand">⚡ TransferBridge</span>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <div class="status-dot" id="status-dot"></div>
+    <span class="status-label" id="status-label">connected</span>
+  </div>
+</header>
+
+<main>
+  <div id="dropzone">
+    <input type="file" id="file-input" multiple
+      accept=".cbz,.cbr,.epub,.mobi,.azw,.azw3,.fb2,.pdf,.zip" />
+    <div class="dz-icon">📚</div>
+    <p class="dz-primary">Drop files here or tap to browse</p>
+    <p class="dz-secondary">CBZ · CBR · EPUB · MOBI · PDF · FB2</p>
+  </div>
+
+  <div id="file-list"></div>
+</main>
+
+<footer>
+  <span class="counter" id="counter">No files queued</span>
+  <div style="display:flex;gap:0.5rem">
+    <button class="btn btn-ghost" id="btn-clear" onclick="clearList()">Clear</button>
+    <button class="btn" id="btn-send" onclick="sendFiles()" disabled>Send to Device</button>
+  </div>
+</footer>
+
+<script>
+  const BASE = "__DEVICE_URL__";
+
+  let queue = [];  // { file, status, progress }
+
+  // ── Drag & drop ──────────────────────────────────────────────────────────────
+  const dz = document.getElementById("dropzone");
+  const fi = document.getElementById("file-input");
+
+  dz.addEventListener("dragover",  e => { e.preventDefault(); dz.classList.add("dragover"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
+  dz.addEventListener("drop", e => {
+    e.preventDefault();
+    dz.classList.remove("dragover");
+    addFiles([...e.dataTransfer.files]);
+  });
+  fi.addEventListener("change", () => {
+    addFiles([...fi.files]);
+    fi.value = "";
+  });
+
+  function addFiles(files) {
+    for (const f of files) {
+      if (!queue.find(q => q.file.name === f.name && q.file.size === f.size)) {
+        queue.push({ file: f, status: "pending", progress: 0 });
+      }
+    }
+    renderList();
+  }
+
+  // ── Render file list ──────────────────────────────────────────────────────────
+  function renderList() {
+    const el = document.getElementById("file-list");
+    const btn = document.getElementById("btn-send");
+    const counter = document.getElementById("counter");
+
+    if (queue.length === 0) {
+      el.innerHTML = "";
+      btn.disabled = true;
+      counter.textContent = "No files queued";
+      return;
+    }
+
+    counter.textContent = `${queue.length} file${queue.length !== 1 ? "s" : ""} — ${fmtBytes(queue.reduce((s,q)=>s+q.file.size,0))}`;
+    btn.disabled = queue.every(q => q.status !== "pending");
+
+    el.innerHTML = queue.map((q, i) => `
+      <div class="file-item" id="item-${i}">
+        <div>
+          <div class="file-name">${esc(q.file.name)}</div>
+          <div class="file-size">${fmtBytes(q.file.size)}</div>
+          <div class="file-progress">
+            <div class="file-progress-fill" id="progress-${i}" style="width:${q.progress}%"></div>
+          </div>
+        </div>
+        <span class="badge badge-${q.status}">${q.status}</span>
+      </div>
+    `).join("");
+  }
+
+  // ── Upload ────────────────────────────────────────────────────────────────────
+  async function sendFiles() {
+    const pending = queue.filter(q => q.status === "pending");
+    if (!pending.length) return;
+
+    document.getElementById("btn-send").disabled = true;
+
+    for (let i = 0; i < queue.length; i++) {
+      const q = queue[i];
+      if (q.status !== "pending") continue;
+
+      q.status = "uploading";
+      q.progress = 0;
+      renderList();
+
+      const fd = new FormData();
+      fd.append("file", q.file, q.file.name);
+
+      try {
+        // Simulate progress via XHR so we get upload events
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", BASE + "/api/upload");
+          xhr.upload.onprogress = e => {
+            if (e.lengthComputable) {
+              q.progress = Math.round(e.loaded / e.total * 100);
+              const bar = document.getElementById(`progress-${i}`);
+              if (bar) bar.style.width = q.progress + "%";
+            }
+          };
+          xhr.onload = () => {
+            try {
+              const res = JSON.parse(xhr.responseText);
+              const r = res.results && res.results[0];
+              q.status = r ? r.status : "error";
+              q.progress = 100;
+            } catch { q.status = "error"; }
+            renderList();
+            resolve();
+          };
+          xhr.onerror = () => { q.status = "error"; renderList(); reject(); };
+          xhr.send(fd);
+        });
+      } catch {
+        q.status = "error";
+        renderList();
+      }
+    }
+
+    document.getElementById("btn-send").disabled = false;
+  }
+
+  function clearList() {
+    queue = queue.filter(q => q.status === "uploading");
+    renderList();
+  }
+
+  // ── Status heartbeat ──────────────────────────────────────────────────────────
+  async function heartbeat() {
+    try {
+      const r = await fetch(BASE + "/api/status");
+      const data = await r.json();
+      const dot   = document.getElementById("status-dot");
+      const label = document.getElementById("status-label");
+      dot.style.background   = data.running ? "var(--ok)" : "var(--err)";
+      dot.style.boxShadow    = `0 0 6px ${data.running ? "var(--ok)" : "var(--err)"}`;
+      label.textContent      = data.running ? "connected" : "offline";
+    } catch {
+      document.getElementById("status-dot").style.background = "var(--err)";
+      document.getElementById("status-label").textContent    = "offline";
+    }
+    setTimeout(heartbeat, 3000);
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────────────────────
+  function fmtBytes(n) {
+    if (n < 1024)        return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+    return (n / 1024 / 1024).toFixed(1) + " MB";
+  }
+  function esc(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  heartbeat();
+</script>
 </body>
 </html>
