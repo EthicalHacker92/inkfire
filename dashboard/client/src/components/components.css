@@ -1,0 +1,91 @@
+/* SeriesCard */
+.series-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.series-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.series-card:hover { border-color: var(--accent); }
+
+.series-cover-placeholder {
+  width: 100%;
+  aspect-ratio: 2/3;
+  background: var(--border);
+}
+
+.series-info { padding: 0.75rem; }
+
+.series-title {
+  font-family: 'Fraunces', serif;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.series-meta { color: var(--text-muted); font-size: 0.75rem; margin: 0.25rem 0; }
+
+.series-progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 0.5rem;
+}
+
+.series-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Stat cards */
+.stat-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 140px;
+}
+
+.stat-value {
+  font-family: 'Fraunces', serif;
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+.stat-label { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* DropZone */
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  transition: border-color 0.15s, background 0.15s;
+  cursor: default;
+}
+
+.dropzone--active {
+  border-color: var(--accent);
+  background: rgba(255, 87, 34, 0.05);
+  color: var(--text);
+}

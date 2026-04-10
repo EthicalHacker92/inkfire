@@ -1,0 +1,58 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-brand {
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.app-nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .app-header { flex-direction: column; height: auto; padding: 0.75rem 1rem; gap: 0.5rem; }
+  .app-nav { gap: 1rem; flex-wrap: wrap; }
+  .app-main { padding: 1rem; }
+}
