@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 const STATUS_LABEL = { unread: "○", in_progress: "◐", complete: "●" };
 
 export default function SeriesCard({ group, filter }) {
   const [open, setOpen] = useState(false);
 
-  const visibleVols = filter === "all"
-    ? group.volumes
-    : group.volumes.filter(v => v.status === filter);
+  const visibleVols = useMemo(
+    () => filter === "all" ? group.volumes : group.volumes.filter(v => v.status === filter),
+    [group, filter]
+  );
 
   const totalPct = group.volumes.length > 0
     ? Math.round(

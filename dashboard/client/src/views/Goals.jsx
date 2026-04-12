@@ -47,23 +47,11 @@ export default function Goals() {
 
         <div className="goal-card">
           <h3>Books This Year</h3>
-          <div className="yearly-ring-wrap">
-            <svg width="128" height="128" viewBox="0 0 128 128">
-              <circle cx="64" cy="64" r="54" fill="none" stroke="var(--border)" strokeWidth="10" />
-              <circle
-                cx="64" cy="64" r="54" fill="none"
-                stroke="var(--accent)" strokeWidth="10"
-                strokeDasharray={2 * Math.PI * 54}
-                strokeDashoffset={2 * Math.PI * 54 * (1 - yearly_pct / 100)}
-                strokeLinecap="round"
-                transform="rotate(-90 64 64)"
-              />
-              <text x="64" y="60" textAnchor="middle" fill="var(--text)" fontSize="22"
-                fontFamily="Fraunces,serif" fontWeight="700">{yearly_complete}</text>
-              <text x="64" y="78" textAnchor="middle" fill="var(--text-muted)" fontSize="11"
-                fontFamily="DM Mono,monospace">of {yearly_goal}</text>
-            </svg>
-          </div>
+          <StreakRing
+            pct={yearly_pct}
+            label1={String(yearly_complete)}
+            label2={`of ${yearly_goal}`}
+          />
           <p className="muted" style={{ textAlign: "center", marginTop: "0.5rem", fontSize: "0.8rem" }}>
             {yearly_pct}% of yearly target
           </p>

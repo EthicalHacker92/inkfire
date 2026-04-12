@@ -11,28 +11,24 @@ export default function HeatmapChart({ data }) {
     return m;
   }, [data]);
 
+  const { days, weeks, max } = useMemo(() => {
+    const today = new Date();
+    const d = new Date(today);
+    d.setDate(d.getDate() - (WEEKS * 7 - 1));
+    const days = [];
+    for (let i = 0; i < WEEKS * 7; i++) {
+      const key = d.toISOString().slice(0, 10);
+      days.push({ key, seconds: map[key] || 0, date: new Date(d) });
+      d.setDate(d.getDate() + 1);
+    }
+    const max = Math.max(...days.map(d => d.seconds), 1);
+    const weeks = [];
+    for (let w = 0; w < WEEKS; w++) weeks.push(days.slice(w * 7, w * 7 + 7));
+    return { days, weeks, max };
+  }, [map]);
+
   if (!data.length) {
     return <p className="muted">No reading data yet.</p>;
-  }
-
-  // Build 52-week grid ending today
-  const today   = new Date();
-  const days    = [];
-  const d       = new Date(today);
-  d.setDate(d.getDate() - (WEEKS * 7 - 1));
-
-  for (let i = 0; i < WEEKS * 7; i++) {
-    const key = d.toISOString().slice(0, 10);
-    days.push({ key, seconds: map[key] || 0, date: new Date(d) });
-    d.setDate(d.getDate() + 1);
-  }
-
-  // Max for scaling
-  const max = Math.max(...days.map(d => d.seconds), 1);
-
-  const weeks = [];
-  for (let w = 0; w < WEEKS; w++) {
-    weeks.push(days.slice(w * 7, w * 7 + 7));
   }
 
   function intensity(seconds) {

@@ -64,9 +64,10 @@ router.get("/", (req, res) => {
       volumes:     groups[key].volumes,
       total:       groups[key].volumes.length,
       total_time:  groups[key].volumes.reduce((s, v) => s + v.total_read_time, 0),
-      unread:      groups[key].volumes.filter(v => v.status === "unread").length,
-      in_progress: groups[key].volumes.filter(v => v.status === "in_progress").length,
-      complete:    groups[key].volumes.filter(v => v.status === "complete").length,
+      ...groups[key].volumes.reduce(
+        (c, v) => { c[v.status]++; return c; },
+        { unread: 0, in_progress: 0, complete: 0 }
+      ),
     }));
 
     // Sort: series groups first (alpha), then unsorted

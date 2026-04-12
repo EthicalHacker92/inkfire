@@ -111,14 +111,18 @@ function extractLuaString(src, key) {
   return m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
 }
 
-function walkDir(dir, fn) {
+function walkDir(dir, fn, depth = 0, seen = new Set()) {
+  if (depth > 10) return;
   try {
+    const real = fs.realpathSync(dir);
+    if (seen.has(real)) return;
+    seen.add(real);
     const entries = fs.readdirSync(dir);
     for (const e of entries) {
       fn(e, dir);
       const full = path.join(dir, e);
       try {
-        if (fs.statSync(full).isDirectory()) walkDir(full, fn);
+        if (fs.statSync(full).isDirectory()) walkDir(full, fn, depth + 1, seen);
       } catch { /* skip */ }
     }
   } catch { /* skip unreadable dirs */ }
