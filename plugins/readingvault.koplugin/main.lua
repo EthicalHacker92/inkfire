@@ -78,7 +78,11 @@ function ReadingVault:setSetting(key, value)
     local ok, db = pcall(SQ3.open, VAULT_DB)
     if not ok then return end
     pcall(function()
-        db:exec("INSERT OR REPLACE INTO goals VALUES (?, ?);", key, tostring(value))
+        local stmt = db:prepare("INSERT OR REPLACE INTO goals VALUES (?, ?);")
+        stmt:bind(1, key)
+        stmt:bind(2, tostring(value))
+        stmt:step()
+        stmt:close()
     end)
     db:close()
 end
@@ -121,10 +125,18 @@ function ReadingVault:saveSession(duration)
     local ok, db = pcall(SQ3.open, VAULT_DB)
     if not ok then return end
     pcall(function()
-        db:exec([[
+        local stmt = db:prepare([[
             INSERT INTO sessions (book_title, book_md5, started_at, ended_at, duration, pages_read)
             VALUES (?, ?, ?, ?, ?, ?);
-        ]], title, md5, self.session_start, os.time(), duration, self.session_pages or 0)
+        ]])
+        stmt:bind(1, title)
+        stmt:bind(2, md5)
+        stmt:bind(3, self.session_start)
+        stmt:bind(4, os.time())
+        stmt:bind(5, duration)
+        stmt:bind(6, self.session_pages or 0)
+        stmt:step()
+        stmt:close()
     end)
     db:close()
 end

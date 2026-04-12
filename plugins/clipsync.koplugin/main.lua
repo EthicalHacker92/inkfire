@@ -13,7 +13,6 @@ local SQ3             = require("lua-ljsqlite3/init")
 local DataStorage     = require("datastorage")
 local lfs             = require("libs/libkoreader-lfs")
 local logger          = require("logger")
-local socket_url      = require("socket.url")
 local _               = require("gettext")
 local T               = require("ffi/util").template
 
@@ -157,10 +156,19 @@ function ClipSync:importSidecar(db, book_path, metadata_path)
         end)
         if not exists and h.text and h.text ~= "" then
             pcall(function()
-                db:exec([[
+                local stmt = db:prepare([[
                     INSERT INTO highlights (book_path, book_title, chapter, page, text, note, datetime)
                     VALUES (?, ?, ?, ?, ?, ?, ?);
-                ]], book_path, book_title, h.chapter, h.page, h.text, h.note, h.datetime)
+                ]])
+                stmt:bind(1, book_path)
+                stmt:bind(2, book_title)
+                stmt:bind(3, h.chapter)
+                stmt:bind(4, h.page)
+                stmt:bind(5, h.text)
+                stmt:bind(6, h.note)
+                stmt:bind(7, h.datetime)
+                stmt:step()
+                stmt:close()
             end)
             imported = imported + 1
         end
@@ -213,20 +221,17 @@ function ClipSync:searchHighlights(query)
             "SELECT id, book_title, chapter, page, text, note, datetime " ..
             "FROM highlights WHERE text LIKE ? ORDER BY datetime DESC LIMIT 50;"
         )
-        -- Bind needs to be called with statement
-        local pat = "%" .. query .. "%"
+        stmt:bind(1, "%" .. query .. "%")
         for row in stmt:rows() do
-            if row[5] and row[5]:lower():find(query:lower(), 1, true) then
-                table.insert(results, {
-                    id         = row[1],
-                    book_title = row[2],
-                    chapter    = row[3],
-                    page       = row[4],
-                    text       = row[5],
-                    note       = row[6],
-                    datetime   = row[7],
-                })
-            end
+            table.insert(results, {
+                id         = row[1],
+                book_title = row[2],
+                chapter    = row[3],
+                page       = row[4],
+                text       = row[5],
+                note       = row[6],
+                datetime   = row[7],
+            })
         end
         stmt:close()
     end)
@@ -264,7 +269,10 @@ function ClipSync:maybeShowDailyMemory()
             timeout = 8,
         })
         pcall(function()
-            db:exec("INSERT OR REPLACE INTO sync_state VALUES ('last_memory_date', ?);", today)
+            local stmt = db:prepare("INSERT OR REPLACE INTO sync_state VALUES ('last_memory_date', ?);")
+            stmt:bind(1, today)
+            stmt:step()
+            stmt:close()
         end)
     end
     db:close()

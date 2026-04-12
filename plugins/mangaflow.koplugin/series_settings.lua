@@ -96,11 +96,17 @@ function SeriesSettings.set(series_name, settings)
     if not db then return false end
 
     local ok, err = pcall(function()
-        db:exec(
-            "INSERT OR REPLACE INTO series_settings VALUES (?, ?, ?, ?, ?, ?, strftime('%s','now'));",
-            series_name, merged.rtl, merged.contrast,
-            merged.precache, merged.autocrop, merged.spread
+        local stmt = db:prepare(
+            "INSERT OR REPLACE INTO series_settings VALUES (?, ?, ?, ?, ?, ?, strftime('%s','now'));"
         )
+        stmt:bind(1, series_name)
+        stmt:bind(2, merged.rtl)
+        stmt:bind(3, merged.contrast)
+        stmt:bind(4, merged.precache)
+        stmt:bind(5, merged.autocrop)
+        stmt:bind(6, merged.spread)
+        stmt:step()
+        stmt:close()
     end)
     db:close()
 
@@ -117,7 +123,10 @@ function SeriesSettings.delete(series_name)
     local db = openDB()
     if not db then return end
     pcall(function()
-        db:exec("DELETE FROM series_settings WHERE series_name = ?;", series_name)
+        local stmt = db:prepare("DELETE FROM series_settings WHERE series_name = ?;")
+        stmt:bind(1, series_name)
+        stmt:step()
+        stmt:close()
     end)
     db:close()
 end

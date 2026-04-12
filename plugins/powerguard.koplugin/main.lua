@@ -14,7 +14,7 @@ local T               = require("ffi/util").template
 
 -- ── Constants ─────────────────────────────────────────────────────────────────
 
-local CODENAME = "spaBWTPV"   -- Kobo Clara BW
+local CODENAME = "Kobo_spaBW"  -- Kobo Clara BW (primary model string)
 
 -- Sleep timeout presets (minutes → seconds)
 local PROFILES = {
@@ -42,8 +42,10 @@ local PowerGuard = WidgetContainer:extend{
 }
 
 function PowerGuard:init()
-    self.is_clara_bw = Device.model == CODENAME or
-                       (Device.model and Device.model:find("Clara") ~= nil)
+    self.is_clara_bw = Device.model == "Kobo_spaBW"
+        or Device.model == "Kobo_spaBWTPV"
+        or Device.model == "spaBWTPV"
+        or (Device.model and Device.model:find("Clara") ~= nil)
     self.ui.menu:registerToMainMenu(self)
 
     -- Start brightness schedule check
@@ -56,11 +58,8 @@ end
 -- ── Device power API ──────────────────────────────────────────────────────────
 
 function PowerGuard:setSleepTimeout(seconds)
-    -- KOReader stores this in G_reader_settings
-    local ok, settings = pcall(require, "luasettings")
-    if ok then
-        G_reader_settings:saveSetting("auto_standby_timeout", seconds)
-    end
+    -- Persist in KOReader's global settings
+    G_reader_settings:saveSetting("auto_standby_timeout", seconds)
 
     -- Also set via Device power management if available
     if Device.setAutoStandby then

@@ -138,20 +138,23 @@ end
 --- Reads ComicInfo.xml from a CBZ and checks the Manga field.
 --- Returns true (RTL), false (LTR), or nil (not found / not determinable).
 function MangaFlow:readComicInfoRTL(cbz_path)
-    -- Use shell unzip to extract ComicInfo.xml without loading the whole archive
-    local cmd = ("unzip -p %q ComicInfo.xml 2>/dev/null"):format(cbz_path)
-    local handle = io.popen(cmd)
-    if not handle then return nil end
-    local xml = handle:read("*a")
-    handle:close()
+    -- Extract ComicInfo.xml via unzip to a temp file (non-blocking, no io.popen)
+    local tmp = os.tmpname()
+    local ret = os.execute(("unzip -p %q ComicInfo.xml > %q 2>/dev/null"):format(cbz_path, tmp))
+    local xml
+    local f = io.open(tmp, "r")
+    if f then
+        xml = f:read("*a")
+        f:close()
+    end
+    pcall(os.remove, tmp)
     if not xml or #xml == 0 then return nil end
 
     -- Parse the <Manga> field — values: Yes, YesAndRightToLeft, No
     local manga_val = xml:match("<Manga>%s*([^<]+)%s*</Manga>")
     if not manga_val then return nil end
     manga_val = manga_val:lower():gsub("%s+", "")
-    if manga_val == "yesandrightttoleft" or manga_val == "yesandrightoleft"
-    or manga_val == "yesandrighttoleft" then
+    if manga_val == "yesandrighttoleft" then
         return true
     elseif manga_val == "yes" then
         return true   -- assume RTL if just "Yes"
@@ -218,13 +221,11 @@ function MangaFlow:applySettings()
     local paging = self.ui.paging
     local s      = self.settings or SeriesSettings.DEFAULTS
 
-    -- Set RTL page-turn direction
-    if paging then
-        if s.rtl == 1 then
-            paging:setPageFlipMode("rtl")   -- right-to-left
-        else
-            paging:setPageFlipMode("ltr")
-        end
+    -- Set RTL page-turn direction via document reading order (KOReader API)
+    if self.ui.document and self.ui.document.setReadingOrder then
+        pcall(function()
+            self.ui.document:setReadingOrder(s.rtl == 1 and 1 or 0)
+        end)
     end
 
     -- Apply contrast / gamma via document draw context
@@ -371,8 +372,8 @@ function MangaFlow:enterSpreadMode()
     if zoom then
         -- Save current mode so we can restore it
         self._prev_zoom_mode = zoom.zoom_mode
-        -- "width" mode fits the full page/spread width to the screen
-        pcall(function() zoom:setZoomMode("width") end)
+        -- "pagewidth" mode fits the full page/spread width to the screen
+        pcall(function() zoom:setZoomMode("pagewidth") end)
     end
     logger.dbg("MangaFlow: entered spread mode")
 end
@@ -411,8 +412,8 @@ function MangaFlow:addToMainMenu(menu_items)
                         self:applySettings()
                     else
                         self:removeHUD()
-                        if self.ui.paging then
-                            self.ui.paging:setPageFlipMode("ltr")
+                        if self.ui.document and self.ui.document.setReadingOrder then
+                            pcall(function() self.ui.document:setReadingOrder(0) end)
                         end
                     end
                 end,

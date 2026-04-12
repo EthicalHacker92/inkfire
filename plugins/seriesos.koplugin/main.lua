@@ -136,33 +136,27 @@ function SeriesOS:buildSeriesMenuItems(groups, filter)
     local items = {}
 
     for _, group in ipairs(groups) do
-        -- Apply reading status filter
         local visible_vols = self:filterVolumes(group.volumes, filter)
-        if #visible_vols == 0 then goto continue end
+        if #visible_vols > 0 then
+            local parts = {}
+            if group.vol_range ~= "" then table.insert(parts, group.vol_range) end
+            if group.unread      > 0  then table.insert(parts, group.unread .. " unread")      end
+            if group.in_progress > 0  then table.insert(parts, group.in_progress .. " reading") end
+            if group.complete    > 0  then table.insert(parts, group.complete .. " done")       end
+            if group.total_time  > 0  then
+                local hrs = math.floor(group.total_time / 3600)
+                if hrs > 0 then table.insert(parts, hrs .. "h read") end
+            end
 
-        -- Build subtitle: "Vol 1–47 · 12 unread · 3 reading"
-        local parts = {}
-        if group.vol_range ~= "" then table.insert(parts, group.vol_range) end
-        if group.unread      > 0  then table.insert(parts, group.unread .. " unread")   end
-        if group.in_progress > 0  then table.insert(parts, group.in_progress .. " reading") end
-        if group.complete    > 0  then table.insert(parts, group.complete .. " done")   end
-        if group.total_time  > 0  then
-            local hrs = math.floor(group.total_time / 3600)
-            if hrs > 0 then table.insert(parts, hrs .. "h read") end
+            local g_ref = group
+            table.insert(items, {
+                text      = group.name,
+                mandatory = table.concat(parts, " · "),
+                callback  = function()
+                    self:openVolumeList(g_ref, visible_vols)
+                end,
+            })
         end
-
-        local subtitle = table.concat(parts, " · ")
-
-        local g_ref = group  -- capture for closure
-        table.insert(items, {
-            text      = group.name,
-            mandatory = subtitle,
-            callback  = function()
-                self:openVolumeList(g_ref, visible_vols)
-            end,
-        })
-
-        ::continue::
     end
 
     return items
@@ -263,7 +257,7 @@ function SeriesOS:showVolumeOptions(vol)
         and T(_("Rename → %1"), canonical)
         or  _("Already canonical name")
 
-    UIManager:show(ButtonDialogTitle:new{
+    self._vol_options = ButtonDialogTitle:new{
         title = vol.title ~= "" and vol.title or vol.filename,
         buttons = {
             {
@@ -300,7 +294,8 @@ function SeriesOS:showVolumeOptions(vol)
                 },
             },
         },
-    })
+    }
+    UIManager:show(self._vol_options)
 end
 
 -- ── Rename ────────────────────────────────────────────────────────────────────
@@ -398,10 +393,10 @@ function SeriesOS:markComplete(vol)
 
     pcall(function()
         -- Update existing entry or create one
-        db:exec(
-            "UPDATE book SET total_read_pages = pages WHERE md5 = ?;",
-            vol.md5
-        )
+        local stmt = db:prepare("UPDATE book SET total_read_pages = pages WHERE md5 = ?;")
+        stmt:bind(1, vol.md5)
+        stmt:step()
+        stmt:close()
     end)
     db:close()
 

@@ -147,7 +147,7 @@ function TransferBridge:poll()
 
     local client = self.server:accept()
     if client then
-        client:settimeout(10)
+        client:settimeout(120)  -- 2 min to accommodate large CBZ uploads
         local ok, err = pcall(function() self:dispatch(client) end)
         if not ok then
             logger.warn("TransferBridge dispatch error:", err)
@@ -217,11 +217,20 @@ function TransferBridge:handleUpload(client, headers)
         return
     end
 
-    local body = client:receive(clen)
-    if not body then
-        self:reply(client, 400, "application/json", '{"error":"no body"}')
+    -- Receive in 64 KB chunks to handle large files without buffer overflow
+    local chunks   = {}
+    local received = 0
+    while received < clen do
+        local chunk = client:receive(math.min(65536, clen - received))
+        if not chunk then break end
+        table.insert(chunks, chunk)
+        received = received + #chunk
+    end
+    if received < clen then
+        self:reply(client, 400, "application/json", '{"error":"incomplete upload"}')
         return
     end
+    local body = table.concat(chunks)
 
     local results = {}
     for _, part in ipairs(self:parseMultipart(body, boundary)) do
