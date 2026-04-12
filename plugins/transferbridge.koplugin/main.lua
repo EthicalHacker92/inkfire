@@ -210,7 +210,8 @@ function TransferBridge:handleUpload(client, headers)
         return
     end
 
-    local boundary = ctype:match("boundary=([^\r\n;]+)")
+    -- Strip optional quotes: boundary="---abc" → ---abc
+    local boundary = ctype:match('boundary="([^"]+)"') or ctype:match("boundary=([^\r\n;%s]+)")
     if not boundary then
         self:reply(client, 400, "application/json", '{"error":"missing boundary"}')
         return

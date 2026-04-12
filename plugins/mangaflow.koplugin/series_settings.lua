@@ -147,6 +147,22 @@ function SeriesSettings.getAll()
     return rows
 end
 
+--- Returns true if a saved row exists for series_name (distinct from just DEFAULTS).
+function SeriesSettings.exists(series_name)
+    if not series_name or series_name == "" then return false end
+    local db = openDB()
+    if not db then return false end
+    local row
+    pcall(function()
+        row = db:rowexec(
+            "SELECT 1 FROM series_settings WHERE series_name = ?;",
+            series_name
+        )
+    end)
+    db:close()
+    return row ~= nil
+end
+
 SeriesSettings.DEFAULTS = DEFAULTS
 
 return SeriesSettings

@@ -1,14 +1,30 @@
+import { useEffect, useState } from "react";
 import DropZone from "../components/DropZone.jsx";
 
-// TODO (Session 2): wire to /api/transfer + show device library
 export default function Transfer() {
+  const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/transfer/status")
+      .then(r => r.json())
+      .then(setStatus)
+      .catch(() => {});
+  }, []);
+
   return (
     <div>
-      <h2 style={{ marginBottom: "1rem" }}>Transfer</h2>
-      <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem" }}>
-        Drop files below to send them to your Kobo via TransferBridge.
-        Full implementation in Session 2.
-      </p>
+      {status && !status.device_configured && (
+        <div className="alert-warning">
+          <strong>Device not configured.</strong> Set <code>DEVICE_IP</code> env var
+          to your Kobo's IP address, then restart the server.
+        </div>
+      )}
+      {status?.device_host && (
+        <p className="muted" style={{ marginBottom: "1rem" }}>
+          Sending to <code>{status.device_host}</code> via SFTP.
+          CBZ/CBR → <code>/mnt/onboard/manga/</code> · EPUB/PDF → <code>/mnt/onboard/books/</code>
+        </p>
+      )}
       <DropZone />
     </div>
   );

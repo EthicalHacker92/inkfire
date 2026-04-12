@@ -5,6 +5,7 @@ import Highlights from "./views/Highlights.jsx";
 import Goals from "./views/Goals.jsx";
 import Transfer from "./views/Transfer.jsx";
 import "./App.css";
+import "./components/components.css";
 
 const NAV = [
   { to: "/",           label: "Library"    },

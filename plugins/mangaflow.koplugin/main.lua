@@ -10,6 +10,7 @@ local InfoMessage      = require("ui/widget/infomessage")
 local ConfirmBox       = require("ui/widget/confirmbox")
 local TextWidget       = require("ui/widget/textwidget")
 local FrameContainer   = require("ui/widget/container/framecontainer")
+local Blitbuffer       = require("ffi/blitbuffer")
 local Font             = require("ui/font")
 local Screen           = require("device/screen")
 local logger           = require("logger")
@@ -103,8 +104,8 @@ function MangaFlow:detectAndApply()
     -- Determine RTL
     self.is_manga = self:detectRTL(filepath, filename)
 
-    -- Ask user on first encounter if no saved setting
-    if self.is_manga and not SeriesSettings.get(self.series_name) then
+    -- Ask user on first encounter (no saved row yet)
+    if self.is_manga and not SeriesSettings.exists(self.series_name) then
         self:promptMangaMode()
     else
         self:applySettings()
@@ -284,13 +285,13 @@ function MangaFlow:showHUD()
     local face = Font:getFace("infofont", 14)
 
     self.hud_widget = FrameContainer:new{
-        background = 0,             -- transparent
+        background = Blitbuffer.COLOR_BLACK,
         bordersize = 0,
-        padding    = 2,
+        padding    = 4,
         TextWidget:new{
-            text = text,
-            face = face,
-            fgcolor = require("ui/lighterror") or 0xBB,
+            text    = text,
+            face    = face,
+            fgcolor = Blitbuffer.COLOR_WHITE,
         },
     }
 
