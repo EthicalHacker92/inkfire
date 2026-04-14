@@ -1,10 +1,19 @@
-// Circular streak/goal ring — SVG-based
-// TODO (Session 4): animate, add flame icon at 100%
-export default function StreakRing({ streak, goal, todayMinutes }) {
-  const pct = goal ? Math.min(todayMinutes / goal, 1) : 0;
-  const r = 54;
+/** Reusable circular progress ring.
+ *  Props: pct (0–100), label1 (big centre text), label2 (small centre text)
+ *  Convenience wrapper: streak/goal/todayMinutes for the reading-streak use-case.
+ */
+export default function StreakRing({ pct, label1, label2, streak, goal, todayMinutes }) {
+  // Support both generic (pct/label1/label2) and legacy streak props
+  const displayPct = pct !== undefined
+    ? pct
+    : (goal ? Math.min((todayMinutes / goal) * 100, 100) : 0);
+
+  const text1 = label1 !== undefined ? label1 : String(streak ?? 0);
+  const text2 = label2 !== undefined ? label2 : "day streak";
+
+  const r    = 54;
   const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - pct);
+  const offset = circ * (1 - displayPct / 100);
 
   return (
     <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
@@ -18,16 +27,20 @@ export default function StreakRing({ streak, goal, todayMinutes }) {
           strokeLinecap="round"
           transform="rotate(-90 64 64)"
         />
-        <text x="64" y="60" textAnchor="middle" fill="var(--text)" fontSize="22" fontFamily="Fraunces,serif" fontWeight="700">
-          {streak}
+        <text x="64" y="60" textAnchor="middle" fill="var(--text)"
+          fontSize="22" fontFamily="Fraunces,serif" fontWeight="700">
+          {text1}
         </text>
-        <text x="64" y="78" textAnchor="middle" fill="var(--text-muted)" fontSize="11" fontFamily="DM Mono,monospace">
-          day streak
+        <text x="64" y="78" textAnchor="middle" fill="var(--text-muted)"
+          fontSize="11" fontFamily="DM Mono,monospace">
+          {text2}
         </text>
       </svg>
-      <p style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
-        {todayMinutes} / {goal} min today
-      </p>
+      {goal !== undefined && (
+        <p style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+          {todayMinutes} / {goal} min today
+        </p>
+      )}
     </div>
   );
 }

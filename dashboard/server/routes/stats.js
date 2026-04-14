@@ -1,5 +1,6 @@
 const { Router } = require("express");
 const { getDb, dbExists } = require("../db");
+const { computeStreak } = require("../utils/streak");
 
 const router = Router();
 
@@ -82,46 +83,5 @@ router.get("/", (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-function computeStreak(heatmap) {
-  if (!heatmap.length) return { current: 0, longest: 0, last_read: null };
-
-  const MIN_SECONDS = 60;
-  const today = new Date().toISOString().slice(0, 10);
-
-  // Build a Set of active days
-  const active = new Set(
-    heatmap.filter(r => r.seconds >= MIN_SECONDS).map(r => r.day)
-  );
-
-  // Walk backwards from today
-  let current = 0;
-  let d = new Date(today);
-  while (true) {
-    const key = d.toISOString().slice(0, 10);
-    if (!active.has(key)) break;
-    current++;
-    d.setDate(d.getDate() - 1);
-  }
-
-  // Longest streak
-  let longest = 0, run = 0;
-  const days = [...active].sort();
-  for (let i = 0; i < days.length; i++) {
-    if (i === 0) { run = 1; continue; }
-    const prev = new Date(days[i - 1]);
-    prev.setDate(prev.getDate() + 1);
-    if (prev.toISOString().slice(0, 10) === days[i]) {
-      run++;
-    } else {
-      run = 1;
-    }
-    longest = Math.max(longest, run);
-  }
-  longest = Math.max(longest, run);
-
-  const last_read = days[days.length - 1] || null;
-  return { current, longest, last_read };
-}
 
 module.exports = router;

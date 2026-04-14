@@ -20,27 +20,34 @@ export default function DropZone() {
 
   async function send() {
     setSending(true);
-    const updated = [...queue];
 
-    for (let i = 0; i < updated.length; i++) {
-      if (updated[i].status !== "pending") continue;
-      updated[i].status = "uploading";
-      setQueue([...updated]);
+    // Work over indices so we can produce fresh item objects instead of mutating
+    for (let i = 0; i < queue.length; i++) {
+      if (queue[i].status !== "pending") continue;
+
+      // Mark uploading — spread each item to avoid shared object references
+      setQueue(q => q.map((item, idx) =>
+        idx === i ? { ...item, status: "uploading" } : item
+      ));
 
       const fd = new FormData();
-      fd.append("files", updated[i].file, updated[i].file.name);
+      fd.append("files", queue[i].file, queue[i].file.name);
 
+      let nextStatus = "error";
+      let nextMessage = "";
       try {
-        const res = await fetch("/api/transfer", { method: "POST", body: fd });
+        const res  = await fetch("/api/transfer", { method: "POST", body: fd });
         const json = await res.json();
-        const r = json.results?.[0];
-        updated[i].status  = r?.status  || "error";
-        updated[i].message = r?.message || r?.dest || "";
+        const r    = json.results?.[0];
+        nextStatus  = r?.status  || "error";
+        nextMessage = r?.message || r?.dest || "";
       } catch (e) {
-        updated[i].status  = "error";
-        updated[i].message = e.message;
+        nextMessage = e.message;
       }
-      setQueue([...updated]);
+
+      setQueue(q => q.map((item, idx) =>
+        idx === i ? { ...item, status: nextStatus, message: nextMessage } : item
+      ));
     }
     setSending(false);
   }

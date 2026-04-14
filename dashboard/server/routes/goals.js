@@ -1,5 +1,6 @@
 const { Router } = require("express");
 const { getDb, dbExists } = require("../db");
+const { computeStreak } = require("../utils/streak");
 
 const router = Router();
 
@@ -12,57 +13,40 @@ router.get("/", (req, res) => {
     return res.json({ synced: false });
   }
   try {
-    const db = getDb();
+    const db    = getDb();
     const today = new Date().toISOString().slice(0, 10);
 
-    // Today's reading time
-    const today_row = db.prepare(`
+    const today_seconds = db.prepare(`
       SELECT COALESCE(SUM(duration), 0) AS seconds
       FROM page_stat_data
       WHERE date(start_time, 'unixepoch', 'localtime') = ?
-    `).get(today);
+    `).get(today)?.seconds || 0;
 
-    const today_seconds = today_row?.seconds || 0;
-
-    // Books completed this year
-    const year = new Date().getFullYear().toString();
-    const completed_this_year = db.prepare(`
+    const yearly_complete = db.prepare(`
       SELECT COUNT(*) AS n FROM book
-      WHERE
-        total_read_pages >= pages * 0.9
+      WHERE total_read_pages >= pages * 0.9
         AND pages > 0
         AND date(last_open, 'unixepoch', 'localtime') LIKE ?
-    `).get(`${year}%`);
+    `).get(`${new Date().getFullYear()}%`)?.n || 0;
 
-    // Streak (daily streak of days with >= 1 min reading)
     const heatmap = db.prepare(`
-      SELECT
-        date(start_time, 'unixepoch', 'localtime') AS day,
-        SUM(duration) AS seconds
+      SELECT date(start_time, 'unixepoch', 'localtime') AS day, SUM(duration) AS seconds
       FROM page_stat_data
       WHERE start_time > strftime('%s','now','-365 days')
-      GROUP BY day
-      HAVING seconds >= 60
-      ORDER BY day ASC
+      GROUP BY day ORDER BY day ASC
     `).all();
 
-    let streak = 0;
-    let d = new Date(today);
-    const active = new Set(heatmap.map(r => r.day));
-    while (active.has(d.toISOString().slice(0, 10))) {
-      streak++;
-      d.setDate(d.getDate() - 1);
-    }
+    const { current: streak } = computeStreak(heatmap);
 
     res.json({
-      synced:               true,
-      daily_goal_seconds:   DAILY_GOAL_SECONDS,
+      synced:             true,
+      daily_goal_seconds: DAILY_GOAL_SECONDS,
       today_seconds,
-      today_pct:            Math.min(100, Math.round((today_seconds / DAILY_GOAL_SECONDS) * 100)),
+      today_pct:          Math.min(100, Math.round((today_seconds / DAILY_GOAL_SECONDS) * 100)),
       streak,
-      yearly_goal:          YEARLY_GOAL_BOOKS,
-      yearly_complete:      completed_this_year?.n || 0,
-      yearly_pct:           Math.min(100, Math.round(((completed_this_year?.n || 0) / YEARLY_GOAL_BOOKS) * 100)),
+      yearly_goal:        YEARLY_GOAL_BOOKS,
+      yearly_complete,
+      yearly_pct:         Math.min(100, Math.round((yearly_complete / YEARLY_GOAL_BOOKS) * 100)),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
