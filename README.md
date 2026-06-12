@@ -1,120 +1,112 @@
-# inkfire
+# 🔥 InkFire
 
-> A suite of KOReader plugins + local web dashboard that solves the biggest
-> pain points for Kobo e-reader users — especially manga readers.
+**A warm home for your reading life — a KOReader plugin for Kobo.**
 
-**Device:** Kobo Clara BW · KOReader (latest stable)  
-**By:** [EthicalHacker92](https://github.com/EthicalHacker92) · Digital Firefighter
+InkFire replaces the cold file-manager landing of stock KOReader with **Hearth**:
+a quiet, welcoming home screen that greets you, hands you your current book,
+queues your next manga volume, and keeps a gentle streak going — all one tap
+from reading.
 
----
+Built for and tested on the **Kobo Clara BW** (1072×1448, 300 dpi e-ink).
+Designed for people who read **books and manga** and want the device to pull
+them back in, not get in the way.
 
-## Plugins
-
-| Plugin | What it does |
-|--------|-------------|
-| **TransferBridge** | WiFi drag-and-drop file transfer. Open `http://device-ip:8765` in any browser, drop files, done. No Calibre needed. |
-| **MangaFlow** | Auto-detects RTL manga (ComicInfo.xml → bookinfo cache → filename), remembers per-series settings, shows a page/series HUD, auto-handles double-page spreads. |
-| **SeriesOS** | Groups your flat library into series shelves. "One Piece · Vol 1–47 · 12 unread." Throttled cover loading so it never freezes. Duplicate detector and auto-rename. |
-| **ReadingVault** | Daily reading goals (default 30 min), streak tracking, session summary popup on close, today's stats in menu. |
-| **PowerGuard** | Smart sleep profiles (Reading 5min / Manga 10min / Night 2min), time-of-day brightness schedule, low-battery mode at 15%. Clara BW-specific tuning. |
-| **ClipSync** | Aggregates all highlights from `.sdr` sidecar files into a searchable SQLite DB. Export to Obsidian markdown or Readwise CSV. Daily random "memory" on wake. |
-
-## Dashboard
-
-Local web app that reads your reading stats via Syncthing.
+## What it looks like
 
 ```
-http://localhost:3000
+ Good evening.                        ⚙  ✕
+ Thursday, June 11
+
+ CONTINUE
+ ╭──────────────────────────────────────╮
+ │ [cover]  Project Hail Mary           │
+ │          Andy Weir                   │
+ │          ▂▂▂▂▂▂▂▂▂░░░░  64%          │
+ │          about 2h 14m left           │
+ ╰──────────────────────────────────────╯
+
+ UP NEXT
+ [Chainsaw Man 14] [Dungeon Crawler] [Cuckoo's Egg]
+
+ ⚑ 12-day streak · 23 min today
+
+ ╭───── Library ─────╮ ╭──── Transfer ────╮
 ```
 
-| View | What it shows |
-|------|--------------|
-| **Library** | Series grid with progress, status filter tabs (All / Unread / Reading / Done), search |
-| **Stats** | GitHub-style reading heatmap, 52-week history, top series by time, pages/hour trend |
-| **Goals** | Day streak ring, daily goal progress, yearly book target |
-| **Highlights** | All highlights searchable and copyable, pulled from `.sdr` sidecars |
-| **Transfer** | Drag-and-drop files to your device via SFTP |
+## Features
 
-**Design:** dark theme · Fraunces + DM Mono · ember `#ff5722`  
-**PWA:** installable on iPhone home screen
+- **Hearth home screen** — time-aware greeting, hero "Continue" card with real
+  cover art, progress, and an honest time-left estimate from your own reading
+  speed. Tap → you're reading.
+- **Smart Up Next** — if you just finished *Chainsaw Man Vol. 13*, Vol. 14 is
+  the first thing offered. Then your other in-progress reads, then fresh arrivals.
+- **Library lanes** — full-screen cover grid with **All · Books · Manga** tabs,
+  finished-book badges, swipe paging sized to the screen.
+- **Quiet habit layer** — a one-line streak + minutes-today. Tap for the full
+  card (week total, books finished, daily goal). It never nags.
+- **WiFi drop transfer** — start it, open the URL on any device on your network,
+  drag files in. Manga (`.cbz/.cbr`) auto-sorts into `manga/`, everything else
+  into `books/`.
+- **Title cleanup** — Anna's-Archive-style filename junk
+  (`-- Publisher -- ISBN -- …`) never reaches your screen.
 
----
+## Design stance
 
-## Install Plugins
+- **Polish, don't replace.** No monkey-patching of KOReader internals — Hearth
+  is a full-screen widget *over* the stock UI. Swipe down and vanilla KOReader
+  is right there. KOReader updates can't brick the device.
+- **E-ink first.** One deliberate flash on entry, partial refresh after. Real
+  SVG icons (KOReader's own set — never emoji). Rounded cards, generous
+  whitespace, strong type hierarchy. Stillness over chrome.
+- **Crash-proof by habit.** Every DB read, file read, and cover decode is
+  pcall-guarded with a designed empty state. A failure renders as a quiet
+  placeholder, not a crash.
 
-### WiFi SFTP (recommended)
+Full design doc: [docs/DESIGN.md](docs/DESIGN.md)
 
-Enable SSH in KOReader: **Menu → Tools → SSH server → Start**
+## Install
 
-```bash
-sftp root@<DEVICE_IP>
-cd /mnt/onboard/.adds/koreader/plugins/
-put -r transferbridge.koplugin
-put -r mangaflow.koplugin
-put -r seriosos.koplugin
-put -r readingvault.koplugin
-put -r powerguard.koplugin
-put -r clipsync.koplugin
-exit
-```
+1. Have [KOReader](https://github.com/koreader/koreader) installed on the Kobo
+   (via [OCP-KFMon](https://www.mobileread.com/forums/showthread.php?t=314220)
+   or NickelMenu).
+2. Copy `inkfire.koplugin/` into `.adds/koreader/plugins/` on the device
+   — or, on macOS with the Kobo plugged in:
+   ```sh
+   ./scripts/deploy-to-kobo.sh
+   ```
+3. Restart KOReader. Hearth greets you.
 
-Then restart KOReader. Plugins appear under **Menu → Tools → Plugin manager**.
+Covers come from KOReader's own book-info cache: browse your library once with
+cover view (or just open books) and art fills in automatically.
 
-### USB
+### Controls
 
-Copy each `.koplugin` folder to `/mnt/onboard/.adds/koreader/plugins/` and restart.
-
----
-
-## Run the Dashboard
-
-### 1. Sync your device
-
-```bash
-bash scripts/setup-sync.sh
-```
-
-Syncthing auto-syncs your Kobo's KOReader folder to `~/.koreader_sync/` whenever on the same WiFi.
-
-### 2. Start the server
-
-```bash
-cd dashboard/server
-npm install
-node index.js
-```
-
-### 3. Start the frontend (dev)
-
-```bash
-cd dashboard/client
-npm install
-npm run dev        # http://localhost:5173
-```
-
-### 4. Environment variables (optional)
-
-| Variable | Default | Description |
+| Where | Gesture / tap | Action |
 |---|---|---|
-| `KOREADER_SYNC_PATH` | `~/.koreader_sync` | Path to synced KOReader folder |
-| `PORT` | `3000` | Server port |
-| `DEVICE_IP` | _(none)_ | Kobo IP for SFTP transfer from dashboard |
-| `DEVICE_SSH_PORT` | `22` | SSH port |
-| `DAILY_GOAL_MINUTES` | `30` | Default daily goal |
-| `YEARLY_GOAL_BOOKS` | `50` | Default yearly target |
+| Hearth | tap hero / Up Next cover | open that book |
+| Hearth | swipe **up** | Library |
+| Hearth | swipe **down** or ✕ | back to stock KOReader |
+| Hearth | tap streak line | stats card + daily goal |
+| Library | swipe **west / east** | page through covers |
+| Anywhere | gesture → *InkFire: open Hearth* | bind via KOReader gestures |
 
-### PWA Install (iPhone)
+Settings (⚙ on Hearth): show-on-startup toggle, daily goal.
 
-1. Open `http://<YOUR_MAC_IP>:5173` in Safari
-2. **Share → Add to Home Screen**
-3. Launch fullscreen, works offline
+## Repo layout
+
+```
+inkfire.koplugin/   the plugin (7 files, ~1900 lines of Lua)
+dashboard/          optional desktop companion (Express + React)
+scripts/            deploy helper
+docs/DESIGN.md      the design document
+```
+
+## Versions
+
+- **v3 “Hearth”** — ground-up rebuild: one welcoming home, library lanes,
+  smart manga continuation, quiet stats, WiFi drop.
+- v2 (archived in git history) — six-plugin suite, menu-driven.
 
 ---
 
-## Topics
-
-`koreader-plugin` · `kobo` · `manga` · `ereader` · `koreader` · `self-hosted`
-
----
-
-*inkfire — Digital Firefighter*
+*Part of the [Digital Firefighter](https://github.com/EthicalHacker92) project.*
