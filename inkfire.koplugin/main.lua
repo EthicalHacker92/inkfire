@@ -18,7 +18,6 @@ local logger          = require("logger")
 local _               = require("gettext")
 local T               = require("ffi/util").template
 
-local S        = require("plugins/inkfire.koplugin/style")
 local Data     = require("plugins/inkfire.koplugin/data")
 local Transfer = require("plugins/inkfire.koplugin/transfer")
 
