@@ -60,7 +60,7 @@ function Library:init()
 end
 
 function Library:perPage()
-    return S.GRID_COLS * S.GRID_ROWS
+    return S.GRID_COLS * (self._rows or 2)
 end
 
 function Library:pageCount()
@@ -178,13 +178,20 @@ function Library:build()
     })
     gap(S.SPACE_L())
 
-    -- ── Grid ──
-    local cols, rows = S.GRID_COLS, S.GRID_ROWS
+    -- ── Grid (row count adapts to what actually fits the screen) ──
+    local cols   = S.GRID_COLS
     local gap_x  = S.SPACE_M()
     local cell_w = math.floor((inner - gap_x * (cols - 1)) / cols)
     local cov_h  = math.floor(cell_w * 1.45)
     local label_h = S.dp(36)
     local cell_h = cov_h + S.SPACE_XS() + label_h
+
+    -- Header ≈ already measured in root; reserve footer + breathing room.
+    local chrome_h = root:getSize().h + S.dp(70) + 2 * gut
+    local rows = math.max(1, math.floor(
+        (self.dimen.h - chrome_h) / (cell_h + S.SPACE_M())))
+    self._rows = rows
+    if self.page > self:pageCount() then self.page = self:pageCount() end
 
     local start = (self.page - 1) * self:perPage()
     local grid = VerticalGroup:new{ align = "left" }

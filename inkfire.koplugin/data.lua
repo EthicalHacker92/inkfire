@@ -120,9 +120,7 @@ local function bookinfoAll()
             WHERE unsupported IS NULL
             ORDER BY directory, filename;
         ]])
-        while true do
-            local r = stmt:step()
-            if not r then break end
+        for r in stmt:rows() do
             rows[#rows + 1] = {
                 directory = r[1], filename = r[2],
                 title = r[3], authors = r[4],
@@ -142,11 +140,13 @@ local _covers   = {}   -- key → { bb = BlitBuffer }
 local _order    = {}   -- keys, oldest first
 local MAX_COVERS = 24
 
+-- Eviction drops references only — live ImageWidgets may still be painting
+-- an evicted bb (e.g., Hearth beneath the Library). BlitBuffers allocated
+-- with setAllocated(1) carry a GC finalizer, so LuaJIT reclaims them once
+-- the last widget reference is gone. Never call :free() here.
 local function evictCovers()
     while #_order > MAX_COVERS do
         local key = table.remove(_order, 1)
-        local entry = _covers[key]
-        if entry and entry.bb then pcall(function() entry.bb:free() end) end
         _covers[key] = nil
     end
 end
@@ -200,10 +200,7 @@ function Data.cover(filepath)
 end
 
 function Data.dropCoverCache()
-    for _, key in ipairs(_order) do
-        local entry = _covers[key]
-        if entry and entry.bb then pcall(function() entry.bb:free() end) end
-    end
+    -- References only; GC finalizers reclaim the buffers (see evictCovers).
     _covers, _order = {}, {}
 end
 
@@ -216,7 +213,8 @@ local function progressOf(filepath)
         pct = tonumber(ds:readSetting("percent_finished")) or 0
         local summary = ds:readSetting("summary")
         if summary and summary.status then status = summary.status end
-        ds:close()
+        -- No ds:close(): close() flushes, which would create .sdr sidecar
+        -- dirs for books the user never opened. Read-only access only.
     end)
     if status == "complete" then pct = 1 end
     return pct, status
@@ -456,9 +454,7 @@ function Data.streak()
             GROUP BY day HAVING SUM(duration) >= 60
             ORDER BY day DESC;
         ]])
-        while true do
-            local r = stmt:step()
-            if not r then break end
+        for r in stmt:rows() do
             days[#days + 1] = r[1]
         end
         stmt:close()
