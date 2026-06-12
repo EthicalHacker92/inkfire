@@ -31,8 +31,8 @@ local logger          = require("logger")
 local _               = require("gettext")
 local Screen          = Device.screen
 
-local S    = require("style")
-local Data = require("data")
+local S    = require("plugins/inkfire.koplugin/style")
+local Data = require("plugins/inkfire.koplugin/data")
 
 -- ── Tiny builders ─────────────────────────────────────────────────────────────
 
